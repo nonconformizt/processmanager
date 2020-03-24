@@ -12,10 +12,13 @@ void Manager::toggle()
 
 void Manager::start()
 {
+    qInfo() << "Algorithm: " << algVariant;
+
     reset();
     isRunning = true;
     procCounter = procNumber;
     generateProc();
+    activeProc = processes[0];
     activateProc(processes[0]);
     tick();
 }
@@ -23,10 +26,19 @@ void Manager::start()
 
 void Manager::tick()
 {
+
+    if (!isRunning)
+        return;
+
     tickCounter++;
 
-    if (tickCounter % (maxDuration / 3) == 0) // weird random
+    if (procCounter > 0 && (tickCounter % (maxDuration / 5) == 0)) // weird random
         generateProc();
+
+    if (procCounter == 0 && processes.size() == 0) {
+        finish();
+        return;
+    }
 
     // maintain processes
 
@@ -51,7 +63,8 @@ void Manager::tick()
         if (activeProc->dur <= 0)
             deleteProc(activeProc);
 
-        proc = findGreatestPriority();
+        if (processes.size() != 0)
+            proc = findGreatestPriority();
         break;
 
     case 2: // SJF
@@ -60,7 +73,9 @@ void Manager::tick()
 
         if (activeProc->dur <= 0) {
             deleteProc(activeProc);
-            proc = findShortestJob();
+            if (processes.size() != 0)
+                proc = findShortestJob();
+            else break;
         } else
             proc = activeProc;
 
@@ -69,12 +84,25 @@ void Manager::tick()
 
     }
 
-    activateProc(proc);
-    updateProc(proc);
-    proc->dur--;
+    if (processes.size() != 0 && proc != nullptr) {
+        activateProc(proc);
+        updateProc(proc);
+        proc->dur--;
+    }
 
 
-    if (procCounter > 0)
+    // collect statistics
+    for (Process * p : processes)
+    {
+        p->totalTime++;
+        if (p != activeProc)
+            p->wastedTime++;
+    }
+
+
+    if (procCounter == 0 && processes.size() == 0)
+        finish();
+    else
         QTimer::singleShot(quant, this, SLOT(tick()));
 }
 
@@ -82,17 +110,38 @@ void Manager::tick()
 void Manager::reset()
 {
     isRunning = false;
-    tickCounter = 0;
+    tickCounter = penaltyTotal = reactivityTotal = timeTotal = wastedTotal = 0;
+
     while(processes.size() != 0)
         delete(processes.takeAt(0));
     while(table->rowCount() != 0)
         table->removeRow(0);
-
 }
+
+
+void Manager::finish()
+{
+    QMessageBox msgBox;
+    msgBox.setText(
+                "Потерянное время: " +
+                QString::number(wastedTotal / procNumber) + "\n" +
+                "Время пребывания процесса в системе: " +
+                QString::number(timeTotal / procNumber) + "\n" +
+                "Отношение реактивности: " +
+                QString::number(reactivityTotal / procNumber) + "\n" +
+                "Штрафное отношение: " +
+                QString::number(penaltyTotal / procNumber) + "\n"
+            );
+    msgBox.exec();
+}
+
 
 void Manager::activateProc(Process *proc)
 {
-    if (proc != activeProc) deactivateProc(activeProc);
+    if (proc == nullptr) return;
+
+    if (proc != activeProc)
+        deactivateProc(activeProc);
     activeProc = proc;
     activeProc->isNew = false;
 
@@ -117,6 +166,8 @@ void Manager::activateProc(Process *proc)
 
 void Manager::deactivateProc(Process *proc)
 {
+    if (!proc) return;
+
     activeProc = nullptr;
 
     // find proc in table by PID
@@ -140,6 +191,13 @@ void Manager::deactivateProc(Process *proc)
 
 void Manager::deleteProc(Process *proc)
 {
+    // count stats
+    reactivityTotal += ((double) proc->wastedTime / proc->totalTime);
+    if (proc->wastedTime != 0)
+        penaltyTotal += ((double) proc->totalTime / proc->wastedTime);
+    timeTotal += proc->totalTime;
+    wastedTotal += proc->wastedTime;
+
     // find proc in table by PID
     QTableWidgetItem * item;
     bool found = false;
@@ -160,6 +218,8 @@ void Manager::deleteProc(Process *proc)
 
 void Manager::updateProc(Process *proc)
 {
+    if (proc == nullptr) return;
+
     // find proc in table by PID
     QTableWidgetItem * item;
     bool found = false;
@@ -221,17 +281,19 @@ Manager::Process * Manager::findGreatestPriority()
 
 Manager::Process * Manager::findShortestJob()
 {
-    int maxpri = -1;
+    int minDur = maxDuration + 1;
     Process * tmp = processes[0];
 
     for (auto curr : processes)
     {
-        if (curr->pri >= maxpri)
+        if (curr->dur <= minDur)
         {
             tmp = curr;
-            maxpri = curr->pri;
+            minDur = curr->dur;
         }
     }
+
+    qInfo() << "Shortest job: " << tmp->dur;
 
     return tmp;
 }

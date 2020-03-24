@@ -6,6 +6,7 @@ SettingsForm::SettingsForm(QWidget *parent) :
     ui(new Ui::SettingsForm)
 {
     ui->setupUi(this);
+    setupSignalsSlots();
 }
 
 SettingsForm::~SettingsForm()
@@ -20,7 +21,7 @@ void SettingsForm::setupSignalsSlots()
     connect(ui->maxPriority, QOverload<int>::of(&QSpinBox::valueChanged),
         [=](int index){ emit maxPriorityChanged(index); });
     connect(ui->maxDuration, QOverload<int>::of(&QSpinBox::valueChanged),
-        [=](int index){ emit maxPriorityChanged(index); });
+        [=](int index){ emit maxDurationChanged(index); });
     connect(ui->numberOfProcesses, QOverload<int>::of(&QSpinBox::valueChanged),
         [=](int index){ emit procNumberChanged(index); });
 }

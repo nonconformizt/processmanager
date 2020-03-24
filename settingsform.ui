@@ -178,10 +178,10 @@
          <item>
           <widget class="QSpinBox" name="maxDuration">
            <property name="minimum">
-            <number>10</number>
+            <number>1</number>
            </property>
            <property name="maximum">
-            <number>10000</number>
+            <number>100</number>
            </property>
            <property name="value">
             <number>20</number>
@@ -228,13 +228,13 @@
          <item>
           <widget class="QSpinBox" name="numberOfProcesses">
            <property name="minimum">
-            <number>10</number>
+            <number>3</number>
            </property>
            <property name="maximum">
-            <number>10000</number>
+            <number>100</number>
            </property>
            <property name="value">
-            <number>100</number>
+            <number>10</number>
            </property>
           </widget>
          </item>
